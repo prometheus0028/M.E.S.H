@@ -1,11 +1,12 @@
 experiment_name: "da1_base_training"
 seed: 42
 
-epochs: 20
+epochs: 2
 batch_size: 32
-learning_rate: 1.0e-3
+learning_rate: 1.0e-5
 weight_decay: 1.0e-4
-clip_grad_norm: 1.0
+clip_grad_norm: 0.1
+modality_dropout_p: 0.15
 
 loss_weights:
   rul: 1.0

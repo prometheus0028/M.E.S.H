@@ -1,0 +1,23 @@
+experiment_name: "cmapss_baseline"
+log_dir: "logs/"
+checkpoint_dir: "checkpoints/cmapss/"
+dataset_path: "data/processed/cmapss_fd001/train/data.npz"
+dataset_name: "cmapss"
+
+batch_size: 32
+epochs: 3
+variance_warmup_epochs: 1
+learning_rate: 0.001
+weight_decay: 0.0001
+clip_grad: 1.0
+
+loss_weights:
+  rul: 1.0
+  fault: 0.0 # Disabled
+  anomaly: 0.0 # Disabled
+
+modality_dropout_p: 0.1
+
+target_normalization:
+  rul_mean: 100.3595
+  rul_std: 65.5573
