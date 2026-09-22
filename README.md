@@ -9,7 +9,6 @@
 - [Setup & Installation](#setup--installation)
 - [Running the Application](#running-the-application)
 - [Project Structure](#project-structure)
-- [Contributing](#contributing)
 - [License](#license)
 
 ## Overview
@@ -68,8 +67,17 @@ M.E.S.H/
 ├─ frontend/         # React + Vite UI
 │   └─ src/components/   # TSX UI components
 ├─ docs/             # Project documentation (including this report)
+├─ checkpoints/
+├─ data/
+├─ deployment/
+├─ logs/
+├─ ml/
+├─ pipelines/
+├─ scripts/
+├─ tests/            
 ├─ README.md         # <-- you are reading it!
 ├─ .gitignore
+├─ .env.example
 └─ package.json
 ```
 
