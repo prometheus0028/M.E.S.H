@@ -5,12 +5,10 @@ import {
   WrenchScrewdriverIcon,
   ShieldCheckIcon,
   ChartBarIcon,
-  DocumentTextIcon,
-  UserIcon,
-  Cog6ToothIcon,
-  BellIcon
+  DocumentTextIcon
 } from '@heroicons/react/24/outline'
 
+import { useDataContext } from './context/DataContext'
 import Overview from './components/Overview'
 import FaultDetection from './components/FaultDetection'
 import PredictiveMaintenance from './components/PredictiveMaintenance'
@@ -20,6 +18,7 @@ import Reports from './components/Reports'
 
 function App() {
   const [activeTab, setActiveTab] = useState('Overview')
+  const { selectedDataset, setSelectedDataset, selectedMachine, setSelectedMachine, allMachines } = useDataContext()
 
   const navItems = [
     { name: 'Overview', icon: Squares2X2Icon },
@@ -98,16 +97,27 @@ function App() {
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
-              <BellIcon className="w-5 h-5" />
-            </button>
-            <button className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
-              <Cog6ToothIcon className="w-5 h-5" />
-            </button>
-            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center border border-blue-200 ml-2">
-              <UserIcon className="w-4 h-4" />
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500 font-medium ml-4">Unit:</span>
+            <select 
+              value={selectedMachine}
+              onChange={(e) => setSelectedMachine(e.target.value)}
+              className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 min-w-[140px]"
+            >
+              {allMachines.map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            
+            <span className="text-sm text-gray-500 font-medium ml-4">Dataset:</span>
+            <select 
+              value={selectedDataset}
+              onChange={(e) => setSelectedDataset(e.target.value)}
+              className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 min-w-[240px]"
+            >
+              <option value="cmapss_fd001">CMAPSS (Turbofan Engines)</option>
+              <option value="ai4i2020">AI4I (Milling Machines)</option>
+            </select>
           </div>
         </header>
 

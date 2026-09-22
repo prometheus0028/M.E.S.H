@@ -7,16 +7,16 @@ dataset_name: "cmapss"
 
 batch_size: 32
 epochs: 100
-early_stopping_patience: 10
+early_stopping_patience: 20
 variance_warmup_epochs: 1
-learning_rate: 0.001
+learning_rate: 0.0005
 weight_decay: 0.0001
 clip_grad: 1.0
 
 loss_weights:
   rul: 1.0
   fault: 0.0 # Disabled
-  anomaly: 0.0 # Disabled
+  anomaly: 1.0
 
 modality_dropout_p: 0.15
 

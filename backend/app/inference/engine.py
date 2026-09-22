@@ -60,7 +60,12 @@ class InferenceEngine:
         explanations = []
 
         try:
-            native_modalities = getattr(model, "native_modalities", ["temperature", "vibration", "pressure"])
+            native_modalities = getattr(model, "native_modalities", None)
+            if not native_modalities:
+                if "temperatures" in request.window:
+                    native_modalities = ["temperatures", "pressures", "speeds", "gas_flow", "operational_settings"]
+                else:
+                    native_modalities = ["temperature", "vibration", "pressure"]
             seq_len = 20 # Expected sequence length
             
             modality_values = {}
@@ -135,12 +140,7 @@ class InferenceEngine:
 
         except Exception as e:
             logger.error(f"Error during model forward pass: {e}")
-            logger.warning("Falling back to mock prediction values to unblock frontend.")
-            import random
-            predictions.rul = round(random.uniform(50.0, 150.0), 2)
-            uncertainty.rul_interval = [round(predictions.rul - 10, 2), round(predictions.rul + 10, 2)]
-            predictions.fault_class = "Class_0"
-            predictions.anomaly_score = round(random.uniform(0.01, 0.1), 4)
+            raise e
 
         latency_ms = (time.perf_counter() - start_time) * 1000.0
 

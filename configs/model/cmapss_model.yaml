@@ -38,6 +38,6 @@ temporal_config:
 heads_config:
   rul_hidden_dim: 64
   num_fault_classes: 0 # Disabled for CMAPSS
-  # anomaly_hidden_dim is completely omitted, so it will be disabled
+  anomaly_hidden_dim: 64
 
 dropout_p: 0.15
