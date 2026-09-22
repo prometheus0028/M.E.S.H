@@ -51,6 +51,7 @@ The dashboard ingests telemetry streams from multiple machines, runs AI models f
    ```
 5. **Run the frontend** (from the repository root)
    ```bash
+   cd frontend
    npm run dev
    ```
    The app will be available at `http://localhost:5173`.
