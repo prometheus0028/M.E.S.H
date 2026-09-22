@@ -31,7 +31,7 @@ The dashboard ingests telemetry streams from multiple machines, runs AI models f
 ## Setup & Installation
 1. **Clone the repository**
    ```bash
-   git clone <repo-url>
+   git clone <https://github.com/prometheus0028/M.E.S.H>
    cd M.E.S.H
    ```
 2. **Install Node.js dependencies**
