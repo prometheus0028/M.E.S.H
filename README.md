@@ -73,8 +73,5 @@ M.E.S.H/
 └─ package.json
 ```
 
-## Contributing
-Contributions are welcome! Please fork the repo, create a feature branch, and submit a pull request. Follow the existing code style and run the linter before committing.
-
 ## License
 This project is licensed under the MIT License.
