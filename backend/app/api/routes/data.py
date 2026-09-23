@@ -147,13 +147,13 @@ def get_window_data(dataset_id: str, run_id: str, window_index: int):
             
         idx = indices[window_index % len(indices)]
         
-        # Inject artificial degradation for AI4I so the dashboard is highly dynamic
-        degradation_factor = min(25.0, window_index * 0.8) # Fast drift
+        # Inject moderate artificial degradation for AI4I so the dashboard is dynamic but not extreme
+        degradation_factor = min(12.0, window_index * 0.3) # Moderate drift, caps at 12
         
-        # Convert to numpy for easy math, add drift and high noise
-        temp_arr = np.array(data["temperature"][idx]) + (degradation_factor * 0.5) + (np.random.randn(*np.array(data["temperature"][idx]).shape) * 3.0)
-        torque_arr = np.array(data["torque"][idx]) + (degradation_factor * 1.5) + (np.random.randn(*np.array(data["torque"][idx]).shape) * 5.0)
-        wear_arr = np.array(data["tool_wear"][idx]) + (degradation_factor * 2.5) + (np.random.randn(*np.array(data["tool_wear"][idx]).shape) * 2.0)
+        # Convert to numpy for easy math, add drift and moderate noise
+        temp_arr = np.array(data["temperature"][idx]) + (degradation_factor * 0.3) + (np.random.randn(*np.array(data["temperature"][idx]).shape) * 1.2)
+        torque_arr = np.array(data["torque"][idx]) + (degradation_factor * 0.6) + (np.random.randn(*np.array(data["torque"][idx]).shape) * 2.0)
+        wear_arr = np.array(data["tool_wear"][idx]) + (degradation_factor * 1.0) + (np.random.randn(*np.array(data["tool_wear"][idx]).shape) * 1.0)
 
         
         return WindowDataResponse(

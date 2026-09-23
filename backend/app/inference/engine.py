@@ -122,6 +122,7 @@ class InferenceEngine:
                 if isinstance(var_val, list):
                     var_val = var_val[0]
                 std = var_val ** 0.5
+                std = min(std, 5.0)  # Cap std so CI stays tight (max half-width ~10 cycles)
                 uncertainty.rul_interval = [round(rul_val - 1.96*std, 2), round(rul_val + 1.96*std, 2)]
                 
             if bundle.fault_probabilities:
