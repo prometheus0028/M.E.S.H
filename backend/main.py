@@ -4,10 +4,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.config.settings import settings
-from backend.app.utils.logging import setup_logging
-from backend.app.services.inference_service import inference_service
-from backend.app.api.endpoints import router as api_router
+from app.config.settings import settings
+from app.utils.logging import setup_logging
+from app.services.inference_service import inference_service
+from app.api.endpoints import router as api_router
 
 
 @asynccontextmanager
@@ -38,14 +38,16 @@ app.add_middleware(
 # Mount API routes
 app.include_router(api_router)
 
-from backend.app.api.routes.data import router as data_router
+from app.api.routes.data import router as data_router
+
 app.include_router(data_router, prefix="/data", tags=["data"])
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
-        "backend.app.main:app",
+        "main:app",
         host=settings.host,
         port=settings.port,
         reload=False,

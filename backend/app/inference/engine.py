@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional
 import torch
 from ml.data.contract import CanonicalBatch
 
-from backend.app.schemas.inference import (
+from app.schemas.inference import (
     InferenceRequest,
     InferenceResponse,
     PredictionOutputs,
@@ -17,7 +17,7 @@ from backend.app.schemas.inference import (
     MissingModalityComparisonResponse,
     ComparisonDelta,
 )
-from backend.app.inference.model_loader import ModelArtifactLoader
+from app.inference.model_loader import ModelArtifactLoader
 
 logger = logging.getLogger(__name__)
 

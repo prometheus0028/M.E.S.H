@@ -2,8 +2,11 @@
 
 from fastapi.testclient import TestClient
 
-from backend.app.main import app
-from backend.app.schemas.inference import InferenceRequest, MissingModalityComparisonRequest
+from backend.main import app
+from backend.app.schemas.inference import (
+    InferenceRequest,
+    MissingModalityComparisonRequest,
+)
 
 
 def test_client_request_conforms_to_backend_schema():
@@ -16,7 +19,7 @@ def test_client_request_conforms_to_backend_schema():
         "vibration_x": 1,
         "vibration_y": 1,
     }
-    
+
     # 1. Test InferenceRequest
     req = InferenceRequest(
         dataset_id="femto_bearing",

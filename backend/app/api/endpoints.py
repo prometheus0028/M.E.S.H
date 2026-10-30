@@ -3,16 +3,16 @@
 import logging
 from fastapi import APIRouter, HTTPException, status
 
-from backend.app.schemas.health import HealthResponse
-from backend.app.schemas.model import ModelInfoResponse
-from backend.app.schemas.inference import (
+from app.schemas.health import HealthResponse
+from app.schemas.model import ModelInfoResponse
+from app.schemas.inference import (
     InferenceRequest,
     InferenceResponse,
     MissingModalityComparisonRequest,
     MissingModalityComparisonResponse,
 )
-from backend.app.services.inference_service import inference_service
-from backend.app.inference.engine import ModelNotReadyException
+from app.services.inference_service import inference_service
+from app.inference.engine import ModelNotReadyException
 
 logger = logging.getLogger(__name__)
 

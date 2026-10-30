@@ -1,8 +1,8 @@
 """Inference service wrapper for FastAPI dependency injection."""
 
-from backend.app.config.settings import settings
-from backend.app.inference.model_loader import ModelArtifactLoader
-from backend.app.inference.engine import InferenceEngine
+from app.config.settings import settings
+from app.inference.model_loader import ModelArtifactLoader
+from app.inference.engine import InferenceEngine
 
 
 class InferenceService:

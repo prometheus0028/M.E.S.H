@@ -1,8 +1,8 @@
 """Schemas package exports."""
 
-from backend.app.schemas.health import HealthResponse
-from backend.app.schemas.model import ModelInfoResponse
-from backend.app.schemas.inference import (
+from app.schemas.health import HealthResponse
+from app.schemas.model import ModelInfoResponse
+from app.schemas.inference import (
     InferenceRequest,
     InferenceResponse,
     PredictionOutputs,
