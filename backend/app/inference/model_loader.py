@@ -4,6 +4,7 @@ import os
 import logging
 from typing import Any, Dict, List, Optional
 from ml.inference.interface import MESHInferenceEngine
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class ModelArtifactLoader:
         self.checkpoint_path = checkpoint_path
         self.preprocessor_path = preprocessor_path
         self.model: Optional[MESHInferenceEngine] = None
+        self.models: Dict[str, MESHInferenceEngine] = {}
         self.preprocessor: Optional[Any] = None
         self.metadata: Dict[str, Any] = {}
         self.is_loaded: bool = False
@@ -25,30 +27,77 @@ class ModelArtifactLoader:
 
     def load_artifacts(self) -> bool:
         """Attempt to load model checkpoint and preprocessor from disk."""
-        # 1. Check if model checkpoint exists
-        if not os.path.exists(self.checkpoint_path):
+        # 1. Primary checkpoint
+        if os.path.exists(self.checkpoint_path):
+            try:
+                self.model = MESHInferenceEngine(self.checkpoint_path)
+                self.model_version = getattr(self.model, "model_version", "v1.0.0")
+                self.dataset_version = getattr(self.model, "train_config", {}).get("dataset_id", "unknown")
+                self.supported_modalities = getattr(
+                    self.model,
+                    "native_modalities",
+                    ["temperatures", "pressures", "speeds", "gas_flow", "operational_settings"]
+                )
+                self.supported_targets = ["rul", "fault_class", "anomaly"]
+                self.is_loaded = True
+
+                model_type = getattr(self.model, "model_type", "MESHModel")
+                if model_type == "AI4IModel":
+                    self.models["ai4i"] = self.model
+                    self.models["ai4i2020"] = self.model
+                else:
+                    self.models["cmapss"] = self.model
+                    self.models["cmapss_fd001"] = self.model
+                logger.info(f"Primary model checkpoint successfully loaded from {self.checkpoint_path}")
+            except Exception as e:
+                logger.error(f"Failed to load PyTorch model checkpoint from {self.checkpoint_path}: {e}")
+                self.is_loaded = False
+        else:
             logger.warning(
-                f"Model checkpoint not found at: {self.checkpoint_path}. "
-                "Backend running in artifact-pending mode."
+                f"Primary model checkpoint not found at: {self.checkpoint_path}. "
+                "Checking fallback checkpoints..."
             )
-            self.is_loaded = False
-            return False
 
-        try:
-            self.model = MESHInferenceEngine(self.checkpoint_path)
+        # 2. Discover and load dataset-specific models (CMAPSS & AI4I)
+        known_checkpoints = {
+            "cmapss": ["ml/checkpoints/cmapss/cmapss_v1_trained.pt", "ml/checkpoints/cmapss/model_best.pt", "ml/checkpoints/latest.pt", "checkpoints/cmapss/cmapss_v1_trained.pt"],
+            "ai4i": ["ml/checkpoints/ai4i/ai4i_v1_trained.pt", "ml/checkpoints/ai4i/model_best.pt", "checkpoints/ai4i/ai4i_v1_trained.pt"],
+        }
+
+        # Resolve paths relative to settings or CWD
+        repo_root = getattr(settings, "repo_root", None)
+
+        for key, rel_list in known_checkpoints.items():
+            if key not in self.models:
+                for rel in rel_list:
+                    candidates = [rel]
+                    if repo_root:
+                        candidates.append(os.path.join(repo_root, rel))
+                    for cand in candidates:
+                        if os.path.exists(cand):
+                            try:
+                                eng = MESHInferenceEngine(cand)
+                                self.models[key] = eng
+                                if key == "cmapss":
+                                    self.models["cmapss_fd001"] = eng
+                                elif key == "ai4i":
+                                    self.models["ai4i2020"] = eng
+                                logger.info(f"Successfully loaded {key} model from {cand}")
+                                break
+                            except Exception as e:
+                                logger.warning(f"Could not load candidate checkpoint {cand}: {e}")
+                    if key in self.models:
+                        break
+
+        # If primary model failed to load but secondary models loaded, set default model
+        if self.model is None and self.models:
+            self.model = next(iter(self.models.values()))
             self.model_version = getattr(self.model, "model_version", "v1.0.0")
-            self.dataset_version = getattr(self.model, "train_config", {}).get("dataset_id", "unknown")
-            self.supported_modalities = getattr(self.model, "native_modalities", ["temperature", "vibration", "pressure"])
+            self.supported_modalities = getattr(self.model, "native_modalities", [])
             self.supported_targets = ["rul", "fault_class", "anomaly"]
-            
             self.is_loaded = True
-            logger.info(f"Model checkpoint successfully loaded from {self.checkpoint_path}")
-        except Exception as e:
-            logger.error(f"Failed to load PyTorch model checkpoint from {self.checkpoint_path}: {e}")
-            self.is_loaded = False
-            return False
 
-        # 2. Check preprocessor artifact
+        # 3. Check preprocessor artifact
         if os.path.exists(self.preprocessor_path):
             try:
                 import pickle
@@ -63,6 +112,15 @@ class ModelArtifactLoader:
 
         return self.is_loaded
 
+    def get_model(self, dataset_id: Optional[str] = None) -> Optional[MESHInferenceEngine]:
+        """Return dataset-specific model if available, else default model."""
+        if dataset_id:
+            ds_lower = dataset_id.lower()
+            for key, m in self.models.items():
+                if key in ds_lower:
+                    return m
+        return self.model
+
     def get_info(self) -> Dict[str, Any]:
         """Return loaded artifact metadata."""
         return {
@@ -74,4 +132,6 @@ class ModelArtifactLoader:
             "preprocessor_loaded": self.preprocessor is not None,
             "supported_modalities": self.supported_modalities,
             "supported_targets": self.supported_targets,
+            "available_models": list(self.models.keys()),
         }
+

@@ -20,8 +20,8 @@ class PredictionBundle:
     training_config_ref: str
     
     # Regression (Real Units)
-    rul_mean_cycles: List[float]
-    rul_variance_cycles: List[float]
+    rul_mean_cycles: Optional[List[float]] = None
+    rul_variance_cycles: Optional[List[float]] = None
     
     # Classification & Anomaly (Optional, depending on dataset/model)
     fault_probabilities: Optional[List[List[float]]] = None
@@ -40,7 +40,7 @@ class MESHInferenceEngine:
         checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
         self.model_config = checkpoint['model_config']
         self.train_config = checkpoint['train_config']
-        self.norm_stats = checkpoint['target_normalization']
+        self.norm_stats = checkpoint.get('target_normalization', {})
         self.model_version = checkpoint.get('model_version', 'unknown')
         self.model_type = self.model_config.get('model_type', 'MESHModel')
         
@@ -84,12 +84,17 @@ class MESHInferenceEngine:
         with torch.no_grad():
             preds, attn_weights = self.model(modality_values, modality_mask)
             
-        # De-normalize RUL to real units
-        rul_mean_stat = self.norm_stats['rul_mean']
-        rul_std_stat = self.norm_stats['rul_std']
-        
-        rul_mean_real = (preds['rul_mean'] * rul_std_stat) + rul_mean_stat
-        rul_var_real = preds['rul_variance'] * (rul_std_stat ** 2)
+        # De-normalize RUL to real units (if RUL head was evaluated)
+        rul_mean_cycles = None
+        rul_variance_cycles = None
+        if 'rul_mean' in preds and 'rul_variance' in preds:
+            rul_mean_stat = self.norm_stats.get('rul_mean', 0.0)
+            rul_std_stat = self.norm_stats.get('rul_std', 1.0)
+            
+            rul_mean_real = (preds['rul_mean'] * rul_std_stat) + rul_mean_stat
+            rul_var_real = preds['rul_variance'] * (rul_std_stat ** 2)
+            rul_mean_cycles = rul_mean_real.cpu().numpy().tolist()
+            rul_variance_cycles = rul_var_real.cpu().numpy().tolist()
         
         # Process Classifications (if heads are active)
         fault_probs = None
@@ -103,17 +108,14 @@ class MESHInferenceEngine:
         # If attention is requested, zero out the missing modalities for clean consumption
         clean_attn = None
         if return_attention and attn_weights is not None:
-            # Mask dimensions depend on static vs temporal fusion
-            # We skip detailed zeroing here if it's too complex across models,
-            # or just return it raw. The fusion layer already masked queries/keys.
             clean_attn = attn_weights.cpu().numpy().tolist()
 
         return PredictionBundle(
             model_version=self.model_version,
             checkpoint_id=self.checkpoint_path,
             training_config_ref=self.train_config.get("experiment_name", "unknown_training"),
-            rul_mean_cycles=rul_mean_real.cpu().numpy().tolist(),
-            rul_variance_cycles=rul_var_real.cpu().numpy().tolist(),
+            rul_mean_cycles=rul_mean_cycles,
+            rul_variance_cycles=rul_variance_cycles,
             fault_probabilities=fault_probs,
             anomaly_probabilities=anomaly_probs,
             attention_weights=clean_attn

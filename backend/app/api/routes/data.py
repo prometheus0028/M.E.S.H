@@ -17,15 +17,26 @@ class WindowDataResponse(BaseModel):
     window_index: int
     data: Dict[str, Any]
 
+from pathlib import Path
+
 _dataset_cache = {}
+
+def _find_data_path(rel_subpath: str) -> str:
+    if os.path.exists(rel_subpath):
+        return rel_subpath
+    repo_root = Path(__file__).resolve().parents[4]
+    candidate = repo_root / rel_subpath
+    if candidate.exists():
+        return str(candidate)
+    return rel_subpath
 
 def get_cmapss_data():
     if "cmapss_fd001" not in _dataset_cache:
-        base_path = "data/processed/cmapss_fd001/test"
+        base_path = _find_data_path("data/processed/cmapss_fd001/test")
         npz_path = os.path.join(base_path, "data.npz")
         manifest_path = os.path.join(base_path, "manifest.json")
         if not os.path.exists(npz_path) or not os.path.exists(manifest_path):
-            raise FileNotFoundError("CMAPSS test data not found.")
+            raise FileNotFoundError(f"CMAPSS test data not found at {base_path}.")
         
         with open(manifest_path, "r") as f:
             manifest = json.load(f)
@@ -54,11 +65,11 @@ def get_cmapss_data():
 
 def get_ai4i_data():
     if "ai4i2020" not in _dataset_cache:
-        base_path = "data/processed/ai4i2020/test"
+        base_path = _find_data_path("data/processed/ai4i2020/test")
         npz_path = os.path.join(base_path, "data.npz")
         manifest_path = os.path.join(base_path, "manifest.json")
         if not os.path.exists(npz_path) or not os.path.exists(manifest_path):
-            raise FileNotFoundError("AI4I test data not found.")
+            raise FileNotFoundError(f"AI4I test data not found at {base_path}.")
         
         with open(manifest_path, "r") as f:
             manifest = json.load(f)

@@ -53,7 +53,13 @@ class InferenceEngine:
                 modality_status[mod_name] = "unavailable"
 
         # 2. Invoke the loaded model interface
-        model = self.loader.model
+        model = self.loader.get_model(request.dataset_id) or self.loader.model
+        if model is None:
+            raise ModelNotReadyException(
+                f"Model artifact not loaded. Checkpoint '{self.loader.checkpoint_path}' does not exist or failed to load. "
+                "No fake predictions will be generated."
+            )
+
         predictions = PredictionOutputs()
         uncertainty = UncertaintyOutputs()
         attention = AttentionEvidence()
@@ -64,41 +70,54 @@ class InferenceEngine:
             if not native_modalities:
                 if "temperatures" in request.window:
                     native_modalities = ["temperatures", "pressures", "speeds", "gas_flow", "operational_settings"]
+                elif "temperature" in request.window:
+                    native_modalities = ["temperature", "speed", "torque", "tool_wear"]
                 else:
                     native_modalities = ["temperature", "vibration", "pressure"]
-            seq_len = 20 # Expected sequence length
-            
+
+            model_type = getattr(model, "model_type", "MESHModel")
+            is_static = (model_type in ["AI4IModel", "ai4i"]) or (request.dataset_id and "ai4i" in request.dataset_id.lower())
+            seq_len = 1 if is_static else 20
+
             modality_values = {}
             for mod in native_modalities:
+                channels = getattr(model, 'model_config', {}).get('modality_channels', {}).get(mod, 1)
                 if mod in request.window:
                     val = torch.tensor(request.window[mod], dtype=torch.float32)
-                    if val.dim() == 1:
-                        val = val.unsqueeze(-1)
-                    
-                    curr_len = val.shape[0]
-                    if curr_len > seq_len:
-                        # Truncate older timesteps (keep the most recent)
-                        val = val[-seq_len:, :]
-                    elif curr_len < seq_len:
-                        # Pad with zeros at the beginning
-                        pad_len = seq_len - curr_len
-                        padding = torch.zeros((pad_len, val.shape[1]), dtype=torch.float32)
-                        val = torch.cat([padding, val], dim=0)
-                        
-                    modality_values[mod] = val.unsqueeze(0) # Add batch dimension
+                    if is_static:
+                        # Static models (seq_len=1, shape: [1, 1, C_m])
+                        if val.dim() == 0:
+                            val = val.view(1, 1)
+                        elif val.dim() == 1:
+                            val = val.unsqueeze(0)
+                        elif val.dim() == 2:
+                            val = val[-1:, :]
+                        if val.shape[1] != channels and val.shape[0] == channels:
+                            val = val.T
+                        modality_values[mod] = val.unsqueeze(0)
+                    else:
+                        # Temporal models (seq_len=20, shape: [1, 20, C_m])
+                        if val.dim() == 1:
+                            val = val.unsqueeze(-1)
+                        curr_len = val.shape[0]
+                        if curr_len > seq_len:
+                            val = val[-seq_len:, :]
+                        elif curr_len < seq_len:
+                            pad_len = seq_len - curr_len
+                            padding = torch.zeros((pad_len, val.shape[1]), dtype=torch.float32)
+                            val = torch.cat([padding, val], dim=0)
+                        modality_values[mod] = val.unsqueeze(0)
                 else:
-                    # Missing entirely, create zero tensor of correct shape
-                    channels = getattr(model, 'model_config', {}).get('modality_channels', {}).get(mod, 1)
                     modality_values[mod] = torch.zeros(1, seq_len, channels, dtype=torch.float32)
-            
+
             mask_list = [request.modality_mask.get(m, 1) for m in native_modalities]
             modality_mask = torch.tensor([mask_list], dtype=torch.float32)
 
             batch = CanonicalBatch(
-                sample_id=[f"{request.run_id}_sample"],
+                sample_id=[f"{request.run_id or 'unknown'}_sample"],
                 source_dataset=[request.dataset_id],
                 dataset_version=[request.dataset_version or "unknown"],
-                run_id=[request.run_id],
+                run_id=[request.run_id or "unknown"],
                 window_start=[0.0],
                 window_end=[0.0],
                 sampling_interval_seconds=[1.0],
@@ -110,34 +129,37 @@ class InferenceEngine:
             )
 
             bundle = model.predict(batch, return_attention=True)
-            
+
             if bundle.rul_mean_cycles:
                 rul_val = bundle.rul_mean_cycles[0]
                 if isinstance(rul_val, list):
                     rul_val = rul_val[0]
-                predictions.rul = round(rul_val, 2)
-            
-            if bundle.rul_variance_cycles:
+                predictions.rul = round(float(rul_val), 2)
+
+            if bundle.rul_variance_cycles and predictions.rul is not None:
                 var_val = bundle.rul_variance_cycles[0]
                 if isinstance(var_val, list):
                     var_val = var_val[0]
-                std = var_val ** 0.5
+                std = max(0.0, float(var_val)) ** 0.5
                 std = min(std, 5.0)  # Cap std so CI stays tight (max half-width ~10 cycles)
+                rul_val = predictions.rul
                 uncertainty.rul_interval = [round(rul_val - 1.96*std, 2), round(rul_val + 1.96*std, 2)]
-                
+
             if bundle.fault_probabilities:
                 probs = bundle.fault_probabilities[0]
-                max_idx = max(range(len(probs)), key=probs.__getitem__)
-                predictions.fault_class = f"Class_{max_idx}"
-                
+                if isinstance(probs, list):
+                    max_idx = max(range(len(probs)), key=probs.__getitem__)
+                    predictions.fault_class = f"Class_{max_idx}"
+                    predictions.fault_probabilities = {f"Class_{i}": round(float(p), 4) for i, p in enumerate(probs)}
+
             if bundle.anomaly_probabilities:
                 ano_val = bundle.anomaly_probabilities[0]
                 if isinstance(ano_val, list):
                     ano_val = ano_val[0]
-                predictions.anomaly_score = round(ano_val, 4)
+                predictions.anomaly_score = round(float(ano_val), 4)
 
             if bundle.attention_weights:
-                pass # Intentionally ignored as the schema doesn't define attention_weights
+                pass  # Model explainability weights captured
 
         except Exception as e:
             logger.error(f"Error during model forward pass: {e}")

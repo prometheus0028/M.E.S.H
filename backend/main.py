@@ -1,5 +1,17 @@
 """Main FastAPI application entry point."""
 
+import sys
+from pathlib import Path
+
+# Ensure backend directory and repository root are on sys.path
+backend_dir = Path(__file__).resolve().parent
+repo_root = backend_dir.parent
+
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,8 +59,7 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "main:app",
+        app,
         host=settings.host,
         port=settings.port,
-        reload=False,
     )
